@@ -3,8 +3,9 @@ SistemaParticulas s;
 Serial arduino; 
 float dato = 0;
 
-// --- CÓDIGO AÑADIDO ---
 int idLoteEspecial = 0; // Contador para los lotes únicos
+// --- CÓDIGO AÑADIDO ---
+boolean sensorEstabaActivo = false; // Para detectar el "flanco de subida"
 // --- FIN CÓDIGO AÑADIDO ---
 
 void settings()
@@ -22,27 +23,33 @@ void setup()
   float viscosidad = 0.02;
   s = new SistemaParticulas(new PVector(40, displayHeight/2), viscosidad);
 
-  // --- LÍNEA MODIFICADA ---
-  // Usar HSB es mejor para cambiar colores cíclicamente
   colorMode(HSB, 360, 100, 100, 100); 
-  // --- FIN LÍNEA MODIFICADA ---
 }
 
 void draw()
 {
-  // --- LÍNEA MODIFICADA ---
-  background(0, 0, 50); // fondo gris oscuro en HSB
-  // --- FIN LÍNEA MODIFICADA ---
+  background(0, 0, 50); 
   
-  //if (mousePressed) { s.addParticula(); }
+  if (mousePressed) { s.addParticula(); }
   
   // --- BLOQUE MODIFICADO ---
-  if (dato > 700 || mousePressed) { 
-    // Llama al nuevo método para añadir un lote con un ID único
-    s.addLoteEspecial(idLoteEspecial, 1); 
-    // Incrementa el ID para que el *próximo* lote sea diferente
-    idLoteEspecial++; 
+  
+  boolean sensorEstaActivo = (dato > 700);
+  
+  if (sensorEstaActivo) {
+    if (!sensorEstabaActivo) {
+      // El sensor ACABA de activarse. 
+      // Incrementamos el ID para crear un nuevo tipo de partícula.
+      idLoteEspecial++;
+    }
+    // Mientras el sensor esté activo, crea UNA partícula por frame.
+    // Todas usarán el mismo idLoteEspecial hasta que el sensor se apague y se vuelva a encender.
+    s.addLoteEspecial(idLoteEspecial, 1); // <--- CAMBIADO DE 5 A 1
   }
+  
+  // Actualiza el estado para el próximo frame
+  sensorEstabaActivo = sensorEstaActivo;
+  
   // --- FIN BLOQUE MODIFICADO ---
   
   s.run();

@@ -4,73 +4,123 @@ class ParticulaEspecial extends Particula {
 
   float angulo;
   float velRotacion;
+  color colorLote;
   
   // --- CÓDIGO AÑADIDO ---
-  color colorLote; // Almacenará el color único de este lote
+  int tipoForma;      // 0: rect, 1: elipse, 2: triángulo
+  PVector fuerzaLote;   // Gravedad, viento, etc.
+  float cambioTamanio;  // Positivo (crece) o negativo (encoge)
   // --- FIN CÓDIGO AÑADIDO ---
+
 
   // --- CONSTRUCTOR MODIFICADO ---
   ParticulaEspecial(PVector donde, int idLote) {
     // 1. Llama al constructor "padre"
     super(donde); 
 
-    // 2. Propiedades sobrescritas
-    velocidad = new PVector(random(-2, 2), random(-5, -3));
-    tamanio = random(15, 25);
+    // 2. --- DEFINIR PROPIEDADES ÚNICAS BASADAS EN EL ID ---
     
-    // 3. --- COMPORTAMIENTO ÚNICO BASADO EN EL ID ---
-    
-    // a) Color único:
-    // Calcula un matiz (Hue) basado en el ID. 
-    // Multiplicamos por 40 para que los colores sean bien distintos.
-    // El % 360 asegura que el valor siempre esté en el rango de 0-360.
+    // a) Color (Igual que antes)
     float matiz = (idLote * 40) % 360;
-    colorLote = color(matiz, 90, 90, 80); // Color brillante, 80% alfa
+    colorLote = color(matiz, 90, 90, 80);
+
+    // b) Forma
+    // Cambia de forma cada vez: 0, 1, 2, 0, 1, 2, ...
+    tipoForma = idLote % 3;
+
+    // c) Tamaño inicial
+    tamanio = random(10, 30);
     
-    // b) Comportamiento único (Rotación):
-    // La velocidad de rotación cambia según el ID.
-    // Usamos (idLote % 5 + 1) para que la velocidad cicle (1x, 2x, 3x, 4x, 5x, 1x, ...)
-    velRotacion = random(-0.05, 0.05) * (idLote % 5 + 1);
+    // d) Comportamiento del Tamaño
+    // Los lotes pares se encogen, los impares crecen
+    if (idLote % 2 == 0) {
+      cambioTamanio = random(-0.05, -0.2); // Se encoge
+    } else {
+      cambioTamanio = random(0.05, 0.2); // Crece
+    }
+
+    // e) Velocidad y Dirección Inicial
+    // Hacemos que la dirección inicial también dependa del lote
+    float dirX = random(1, 4);
+    float dirY = random(-3, 3);
+    if (idLote % 4 == 1) dirY = random(-5, -2); // Lotes tipo 1 van más hacia arriba
+    if (idLote % 4 == 2) dirX = random(-4, -1); // Lotes tipo 2 van hacia la izquierda
+    velocidad = new PVector(dirX, dirY);
     
+    // f) Física (Fuerza constante)
+    // Cambia la "física" para cada lote
+    int tipoFisica = idLote % 4;
+    if (tipoFisica == 0) {
+      fuerzaLote = new PVector(0, 0.1); // Gravedad normal
+    } else if (tipoFisica == 1) {
+      fuerzaLote = new PVector(0, 0); // Sin gravedad (flota)
+    } else if (tipoFisica == 2) {
+      fuerzaLote = new PVector(0.05, 0.05); // Viento a la derecha + gravedad leve
+    } else {
+      fuerzaLote = new PVector(0, -0.05); // Anti-gravedad (sube)
+    }
+
+    // g) Rotación
+    velRotacion = random(-0.05, 0.05) * (idLote % 4 + 1); // Más rápido en algunos lotes
     angulo = random(TWO_PI);
   }
   // --- FIN CONSTRUCTOR MODIFICADO ---
 
-  // ... (update y aplicarViscosidad sin cambios respecto a la respuesta anterior) ...
   @Override
   void update() {
-    PVector gravedad = new PVector(0, 0.1);
-    aplicarFuerza(gravedad);
+    // Aplicar la fuerza única de este lote
+    aplicarFuerza(fuerzaLote); 
 
     velocidad.add(aceleracion);
     posicion.add(velocidad);
-    angulo += velRotacion; // Usa la velocidad de rotación única
+    angulo += velRotacion;
     aceleracion.mult(0);   
 
-    tamanio -= 0.05; 
+    // Usar el comportamiento de tamaño único
+    tamanio += cambioTamanio; 
     
-    if (tamanio < 1 || posicion.y > height + tamanio) {
+    // Morir si es muy pequeño (y no está creciendo)
+    if (tamanio < 1 && cambioTamanio < 0) {
+      isDead = true;
+    }
+    
+    // Morir si sale de la pantalla
+    if (posicion.y > height + tamanio || posicion.y < -tamanio || 
+        posicion.x > width + tamanio || posicion.x < -tamanio) {
       isDead = true;
     }
   }
 
   @Override
   void aplicarViscosidad(float v) {
-    // Esta partícula ignora la viscosidad.
+    // Esta partícula ignora la viscosidad del sistema
   }
 
   // --- RENDER MODIFICADO ---
   @Override
   void render() {
     push();
-    // Usa el color único del lote
-    fill(colorLote); 
-    rectMode(CENTER);
+    fill(colorLote);
+    noStroke(); // Se ve más limpio
     
+    // Aplica transformación
     translate(posicion.x, posicion.y);
     rotate(angulo);
     
-    rect(0, 0, tamanio, tamanio);
+    // Dibuja la forma correcta
+    if (tipoForma == 0) {
+      // Rectángulo
+      rectMode(CENTER);
+      rect(0, 0, tamanio, tamanio);
+    } else if (tipoForma == 1) {
+      // Elipse
+      ellipseMode(CENTER);
+      ellipse(0, 0, tamanio, tamanio * 0.7); // Un poco ovalado
+    } else {
+      // Triángulo
+      triangle(0, -tamanio/2, -tamanio/2, tamanio/2, tamanio/2, tamanio/2);
+    }
+    
     pop();
   }
 }
